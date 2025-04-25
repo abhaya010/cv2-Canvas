@@ -4,7 +4,7 @@ import mediapipe as mp
 import time
 import math
 
-# Initialize MediaPipe Hand module
+
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False,
                       max_num_hands=1,
@@ -12,25 +12,25 @@ hands = mp_hands.Hands(static_image_mode=False,
                       min_tracking_confidence=0.5)
 mp_draw = mp.solutions.drawing_utils
 
-# Initialize drawing parameters
+
 draw_color = (0, 0, 255)  # Red color by default
 brush_thickness = 15
 eraser_thickness = 50
 
-# Create canvas
+
 canvas = np.zeros((480, 640, 3), np.uint8)
 
-# Previous coordinates for drawing
+
 prev_x, prev_y = 0, 0
 
-# For smoothing
+
 smoothing_factor = 0.5
 smooth_x, smooth_y = 0, 0
 
-# Button states
+
 button_hover = None
 
-# Define color buttons
+
 buttons = [
     {"name": "RED", "color": (0, 0, 255), "rect": (40, 1, 140, 65), "text_color": (255, 255, 255)},
     {"name": "GREEN", "color": (0, 255, 0), "rect": (160, 1, 260, 65), "text_color": (255, 255, 255)},
@@ -39,7 +39,7 @@ buttons = [
     {"name": "CLEAR", "color": (255, 255, 255), "rect": (520, 1, 620, 65), "text_color": (0, 0, 0)}
 ]
 
-# Function to find hand landmarks with improved stability
+
 def find_hand_landmarks(img):
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(img_rgb)
@@ -56,7 +56,7 @@ def find_hand_landmarks(img):
     
     return img, landmarks
 
-# Create color selection buttons with hover effect
+
 def create_buttons(img, hover_button=None):
     for button in buttons:
         x1, y1, x2, y2 = button["rect"]
@@ -64,17 +64,17 @@ def create_buttons(img, hover_button=None):
         name = button["name"]
         text_color = button["text_color"]
         
-        # Draw button with highlight if hovered
+     
         if hover_button == name:
-            # Draw highlight border
+          
             cv2.rectangle(img, (x1-3, y1-3), (x2+3, y2+3), (255, 255, 0), 3)
-            # Draw button with slightly brighter color
+          
             bright_color = tuple(min(c + 50, 255) for c in color)
             cv2.rectangle(img, (x1, y1), (x2, y2), bright_color, -1)
         else:
             cv2.rectangle(img, (x1, y1), (x2, y2), color, -1)
         
-        # Center text
+       
         text_size = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
         text_x = x1 + (x2 - x1 - text_size[0]) // 2
         text_y = y1 + (y2 - y1 + text_size[1]) // 2
@@ -92,7 +92,6 @@ def is_point_in_button(point, button):
 def smooth_coordinates(current_x, current_y, prev_x, prev_y, smoothing_factor):
     return int(prev_x + smoothing_factor * (current_x - prev_x)), int(prev_y + smoothing_factor * (current_y - prev_y))
 
-# Main function
 def main():
     global prev_x, prev_y, draw_color, canvas, button_hover, smooth_x, smooth_y
     
@@ -104,17 +103,17 @@ def main():
     
     prev_time = 0
     
-    # Mode tracking
+   
     selection_mode = False
     drawing_mode = False
-    previous_drawing_mode = False  # Track previous drawing mode state
+    previous_drawing_mode = False  
     
-    # For stabilizing the drawing
+    
     points_history = []
     max_history = 5
     
     while True:
-        # Read frame from webcam
+       
         success, img = cap.read()
         if not success:
             break
@@ -122,10 +121,9 @@ def main():
         
         img = cv2.flip(img, 1)
         
-        # Find hand landmarks
+       
         img, landmarks = find_hand_landmarks(img)
         
-        # Reset hover state
         hover_button = None
         
        
