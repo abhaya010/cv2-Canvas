@@ -82,13 +82,13 @@ def create_buttons(img, hover_button=None):
     
     return img
 
-# Check if a point is inside a button
+
 def is_point_in_button(point, button):
     x, y = point
     x1, y1, x2, y2 = button["rect"]
     return x1 < x < x2 and y1 < y < y2
 
-# Apply smoothing to coordinates
+
 def smooth_coordinates(current_x, current_y, prev_x, prev_y, smoothing_factor):
     return int(prev_x + smoothing_factor * (current_x - prev_x)), int(prev_y + smoothing_factor * (current_y - prev_y))
 
@@ -96,17 +96,18 @@ def smooth_coordinates(current_x, current_y, prev_x, prev_y, smoothing_factor):
 def main():
     global prev_x, prev_y, draw_color, canvas, button_hover, smooth_x, smooth_y
     
-    # Start webcam
+    
     cap = cv2.VideoCapture(0)
     cap.set(3, 640)  # Width
     cap.set(4, 480)  # Height
     
-    # FPS calculation
+    
     prev_time = 0
     
     # Mode tracking
     selection_mode = False
     drawing_mode = False
+    previous_drawing_mode = False  # Track previous drawing mode state
     
     # For stabilizing the drawing
     points_history = []
@@ -118,7 +119,7 @@ def main():
         if not success:
             break
             
-        # Flip the image horizontally for a more intuitive experience
+        
         img = cv2.flip(img, 1)
         
         # Find hand landmarks
@@ -127,32 +128,38 @@ def main():
         # Reset hover state
         hover_button = None
         
-        # Check if hand is detected
+       
         if landmarks:
-            # Get index finger and middle finger positions
+           
             index_finger_tip = landmarks[8]
             middle_finger_tip = landmarks[12]
             
-            # Check finger positions for mode detection
-            index_up = landmarks[8][1] < landmarks[6][1]  # Index finger up
-            middle_up = landmarks[12][1] < landmarks[10][1]  # Middle finger up
             
-            # Determine mode
+            index_up = landmarks[8][1] < landmarks[6][1]  
+            middle_up = landmarks[12][1] < landmarks[10][1]  
+            
+            
             selection_mode = index_up and middle_up
             drawing_mode = index_up and not middle_up
             
+          
+            if drawing_mode and not previous_drawing_mode:
+                prev_x, prev_y = 0, 0
+                smooth_x, smooth_y = 0, 0
+                points_history = []
+            
             if selection_mode:
-                # Selection mode - check if we're hovering over a button
+                
                 for button in buttons:
                     if is_point_in_button(index_finger_tip, button):
                         hover_button = button["name"]
                         
-                        # If finger is pressed (determined by distance between index and thumb)
+                       
                         thumb_tip = landmarks[4]
                         distance = math.sqrt((thumb_tip[0] - index_finger_tip[0])**2 + 
                                             (thumb_tip[1] - index_finger_tip[1])**2)
                         
-                        if distance < 40:  # If thumb and index are close (pinching)
+                        if distance < 40:  
                             if button["name"] == "RED":
                                 draw_color = (0, 0, 255)
                             elif button["name"] == "GREEN":
@@ -164,19 +171,18 @@ def main():
                             elif button["name"] == "CLEAR":
                                 canvas = np.zeros((480, 640, 3), np.uint8)
                 
-                # Reset previous coordinates
                 prev_x, prev_y = 0, 0
                 smooth_x, smooth_y = 0, 0
                 points_history = []
                 
-                # Draw a circle at the index finger tip to show selection mode
+               
                 cv2.circle(img, index_finger_tip, 15, (255, 255, 0), cv2.FILLED)
                 cv2.circle(img, middle_finger_tip, 15, (255, 255, 0), cv2.FILLED)
                 cv2.line(img, index_finger_tip, middle_finger_tip, (255, 255, 0), 3)
             
-            # Drawing mode - only index finger up
+            
             elif drawing_mode:
-                # Apply smoothing to the finger position
+             
                 if smooth_x == 0 and smooth_y == 0:
                     smooth_x, smooth_y = index_finger_tip
                 else:
@@ -186,12 +192,12 @@ def main():
                         smoothing_factor
                     )
                 
-                # Add point to history for stabilization
+              
                 points_history.append((smooth_x, smooth_y))
                 if len(points_history) > max_history:
                     points_history.pop(0)
                 
-                # Calculate average position from history for more stability
+                
                 if len(points_history) > 0:
                     avg_x = sum(p[0] for p in points_history) // len(points_history)
                     avg_y = sum(p[1] for p in points_history) // len(points_history)
@@ -199,28 +205,32 @@ def main():
                 else:
                     current_point = (smooth_x, smooth_y)
                 
-                # Draw a circle at the index finger tip
+                
                 cv2.circle(img, current_point, 15, draw_color, cv2.FILLED)
                 
-                # If this is the first point, initialize previous coordinates
+              
                 if prev_x == 0 and prev_y == 0:
                     prev_x, prev_y = current_point
                 else:
-                    # Draw line on the canvas
+                  
                     if draw_color == (0, 0, 0):  # Eraser
                         cv2.line(canvas, (prev_x, prev_y), current_point, draw_color, eraser_thickness)
                     else:
                         cv2.line(canvas, (prev_x, prev_y), current_point, draw_color, brush_thickness)
                 
-                # Update previous coordinates
+              
                 prev_x, prev_y = current_point
+            
+            # Update previous drawing mode state
+            previous_drawing_mode = drawing_mode
         else:
-            # Reset previous coordinates if no hand is detected
+           
             prev_x, prev_y = 0, 0
             smooth_x, smooth_y = 0, 0
             points_history = []
+            previous_drawing_mode = False
         
-        # Add buttons to the image with hover effect
+     
         img = create_buttons(img, hover_button)
         
         # Calculate FPS
@@ -228,37 +238,36 @@ def main():
         fps = 1 / (current_time - prev_time)
         prev_time = current_time
         
-        # Display FPS
+        #  FPS
         cv2.putText(img, f'FPS: {int(fps)}', (10, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
         
-        # Display current mode
+        
         mode_text = "SELECTION MODE" if selection_mode else "DRAWING MODE" if drawing_mode else "NO MODE"
         cv2.putText(img, mode_text, (220, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         
-        # Display current color
+     
         color_name = "ERASER" if draw_color == (0, 0, 0) else "RED" if draw_color == (0, 0, 255) else "GREEN" if draw_color == (0, 255, 0) else "BLUE"
         cv2.putText(img, f"Color: {color_name}", (450, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.7, draw_color, 2)
         
-        # Combine the canvas with the webcam image
+      
         img_gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
         _, img_inv = cv2.threshold(img_gray, 50, 255, cv2.THRESH_BINARY_INV)
         img_inv = cv2.cvtColor(img_inv, cv2.COLOR_GRAY2BGR)
         img = cv2.bitwise_and(img, img_inv)
         img = cv2.bitwise_or(img, canvas)
         
-        # Display instructions
         cv2.putText(img, "Index finger: Draw", (10, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.putText(img, "Index + Middle fingers: Select", (220, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         cv2.putText(img, "Pinch to select color", (450, 470), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
-        # Show the image
+      
         cv2.imshow("Hand Drawing Canvas", img)
         
-        # Exit if 'q' is pressed
+       
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
-    # Release resources
+   
     cap.release()
     cv2.destroyAllWindows()
 
